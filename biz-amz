@@ -6,7 +6,7 @@
   <title>Opening in Amazon Business…</title>
   <style>
     body {
-      font-family: -apple-system, BlinkMacOSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       text-align: center;
       padding: 50px 20px;
       margin: 0;
@@ -19,17 +19,18 @@
     .small { font-size: 0.85em; color: #666; }
     .error { color: #c40000; font-weight: bold; }
   </style>
+</head>
+<body>
   <script>
     const params = new URLSearchParams(window.location.search);
     const asin = params.get('asin')?.trim().toUpperCase();
 
-    if (!asin || asin.length < 8 || !/^[A-Z0-9]{10}$/.test(asin)) {
+    if (!asin || !/^[A-Z0-9]{10}$/.test(asin)) {
       document.body.innerHTML = `
         <h1>Error</h1>
-        <p class="error">Missing or invalid ASIN.<br>
-        Use: <code>?asin=B08N5WRWNW</code></p>
+        <p class="error">Missing or invalid ASIN.<br>Use: <code>?asin=B08N5WRWNW</code></p>
       `;
-      throw new Error('Invalid ASIN');
+      return;
     }
 
     const ua = navigator.userAgent || '';
@@ -37,25 +38,13 @@
     const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
     const productPath = `dp/${asin}`;
-    const webUrl      = `https://www.amazon.com/${productPath}`;
+    const webUrl = `https://www.amazon.com/${productPath}`;
 
-    // Attempts in order (best chance for Business → regular shopping → web)
-    const attempts = [];
-
-    // 1. Modern scheme (sometimes works for Business after recent updates)
-    attempts.push(`com.amazon.mobile.shopping.web://${productPath}`);
-
-    // 2. Classic intent → regular Amazon Shopping (most reliable)
-    attempts.push(
-      `intent://www.amazon.com/${productPath}#Intent;` +
-      `scheme=https;package=com.amazon.mShop.android.shopping;end;`
-    );
-
-    // 3. Direct package attempt for Business (low success rate)
-    attempts.push(
-      `intent://www.amazon.com/${productPath}#Intent;` +
-      `scheme=https;package=com.amazon.mShop.android.business.shopping;end;`
-    );
+    const attempts = [
+      `com.amazon.mobile.shopping.web://${productPath}`,  // Modern scheme
+      `intent://www.amazon.com/${productPath}#Intent;scheme=https;package=com.amazon.mShop.android.shopping;end;`,  // Regular shopping app
+      `intent://www.amazon.com/${productPath}#Intent;scheme=https;package=com.amazon.mShop.android.business.shopping;end;`  // Business app
+    ];
 
     let attemptIndex = 0;
 
@@ -64,32 +53,22 @@
         window.location.replace(webUrl);
         return;
       }
-
-      const url = attempts[attemptIndex];
-      attemptIndex++;
-
-      window.location.replace(url);
-
-      // If the redirect fails (app not installed/not handling), try next after delay
+      window.location.replace(attempts[attemptIndex++]);
       setTimeout(tryNext, isAndroid ? 1200 : 1800);
     }
 
-    // Start chain
     tryNext();
 
-    // Show nice loading message
     document.body.innerHTML = `
       <h1>Redirecting…</h1>
       <p>Opening product <span class="asin">${asin}</span> in<br>
       <strong>Amazon Business</strong> app (if installed)</p>
-      <p class="small">Trying Amazon Shopping app next…<br>
-      Falling back to browser in a few seconds.</p>
+      <p class="small">Trying Amazon Shopping app next…<br>Falling back to browser soon.</p>
     `;
   </script>
-</head>
-<body>
+
   <noscript>
-    <h1>JavaScript is required</h1>
+    <h1>JavaScript required</h1>
     <p>Open manually: <a href="https://www.amazon.com/dp/REPLACE_ASIN_HERE">https://www.amazon.com/dp/REPLACE_ASIN_HERE</a></p>
   </noscript>
 </body>
