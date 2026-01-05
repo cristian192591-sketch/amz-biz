@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting…</title>
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const asin = params.get("asin")
+
+    if (!asin) {
+      document.body.innerText = "Missing ASIN"
+    } else {
+      const ua = navigator.userAgent || ""
+      const isAndroid = /Android/i.test(ua)
+      const amazonUrl = `https://www.amazon.com/dp/${asin}`
+
+      if (isAndroid) {
+        const intentUrl =
+          `intent://www.amazon.com/dp/${asin}` +
+          `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;end;`
+        window.location.replace(intentUrl)
+      } else {
+        window.location.replace(amazonUrl)
+      }
+    }
+  </script>
+</head>
+<body>
+Redirecting…
+</body>
+</html>
