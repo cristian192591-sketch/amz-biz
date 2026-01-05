@@ -3,89 +3,94 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting to Amazon Business…</title>
+  <title>Opening in Amazon Business…</title>
   <style>
-    body { 
-      font-family: system-ui, sans-serif; 
-      text-align: center; 
-      padding: 40px 20px; 
-      margin: 0; 
-      background: #f8f9fa; 
+    body {
+      font-family: -apple-system, BlinkMacOSystemFont, 'Segoe UI', Roboto, sans-serif;
+      text-align: center;
+      padding: 50px 20px;
+      margin: 0;
+      background: #f5f6f8;
+      color: #111;
     }
-    h1 { color: #131921; }
-    p { max-width: 500px; margin: 20px auto; color: #444; }
-    .error { color: #d11; font-weight: bold; }
+    h1 { color: #131921; margin-bottom: 8px; }
+    p { max-width: 480px; margin: 0 auto 20px; color: #444; line-height: 1.5; }
+    .asin { font-family: monospace; font-weight: bold; color: #0066c0; }
+    .small { font-size: 0.85em; color: #666; }
+    .error { color: #c40000; font-weight: bold; }
   </style>
   <script>
-    // Get ASIN from URL (?asin=XXXXXXXXX)
     const params = new URLSearchParams(window.location.search);
-    const asin = params.get("asin")?.trim().toUpperCase();
+    const asin = params.get('asin')?.trim().toUpperCase();
 
-    if (!asin || asin.length < 8) {
-      document.body.innerHTML = '<h1>Error</h1><p class="error">Missing or invalid ASIN parameter.<br>Example usage: <code>?asin=B08N5WRWNW</code></p>';
-      return;
+    if (!asin || asin.length < 8 || !/^[A-Z0-9]{10}$/.test(asin)) {
+      document.body.innerHTML = `
+        <h1>Error</h1>
+        <p class="error">Missing or invalid ASIN.<br>
+        Use: <code>?asin=B08N5WRWNW</code></p>
+      `;
+      throw new Error('Invalid ASIN');
     }
 
-    const ua = navigator.userAgent || "";
+    const ua = navigator.userAgent || '';
     const isAndroid = /Android/i.test(ua);
     const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
-    // Target URLs
-    const webUrl = `https://www.amazon.com/dp/${asin}`;
-    // Modern web-scheme style deep link (works for both shopping & business in many cases)
-    const appDeepLink = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}`;
-    // Classic intent style (more reliable for regular shopping app)
-    const intentDeepLink = `intent://www.amazon.com/dp/${asin}#Intent;scheme=https;package=com.amazon.mShop.android.shopping;end;`;
+    const productPath = `dp/${asin}`;
+    const webUrl      = `https://www.amazon.com/${productPath}`;
 
-    function tryRedirect() {
-      // 1. Android → try Business app first, then regular shopping app
-      if (isAndroid) {
-        // Attempt #1: Modern scheme (sometimes recognized by Business app too)
-        window.location.replace(appDeepLink);
+    // Attempts in order (best chance for Business → regular shopping → web)
+    const attempts = [];
 
-        // Attempt #2: Classic intent → regular shopping app (very reliable)
-        setTimeout(() => {
-          window.location.replace(intentDeepLink);
-        }, 800);
+    // 1. Modern scheme (sometimes works for Business after recent updates)
+    attempts.push(`com.amazon.mobile.shopping.web://${productPath}`);
 
-        // Final fallback: web after ~2.5 seconds
-        setTimeout(() => {
-          window.location.replace(webUrl);
-        }, 2500);
+    // 2. Classic intent → regular Amazon Shopping (most reliable)
+    attempts.push(
+      `intent://www.amazon.com/${productPath}#Intent;` +
+      `scheme=https;package=com.amazon.mShop.android.shopping;end;`
+    );
 
+    // 3. Direct package attempt for Business (low success rate)
+    attempts.push(
+      `intent://www.amazon.com/${productPath}#Intent;` +
+      `scheme=https;package=com.amazon.mShop.android.business.shopping;end;`
+    );
+
+    let attemptIndex = 0;
+
+    function tryNext() {
+      if (attemptIndex >= attempts.length) {
+        window.location.replace(webUrl);
         return;
       }
 
-      // 2. iOS or other → best effort with web scheme (often falls back to browser anyway)
-      if (isIOS) {
-        window.location.replace(appDeepLink);
-        // iOS fallback after short delay
-        setTimeout(() => window.location.replace(webUrl), 1500);
-        return;
-      }
+      const url = attempts[attemptIndex];
+      attemptIndex++;
 
-      // 3. Desktop / unknown → straight to web
-      window.location.replace(webUrl);
+      window.location.replace(url);
+
+      // If the redirect fails (app not installed/not handling), try next after delay
+      setTimeout(tryNext, isAndroid ? 1200 : 1800);
     }
 
-    // Start redirect
-    tryRedirect();
+    // Start chain
+    tryNext();
 
-    // Show user feedback while waiting
+    // Show nice loading message
     document.body.innerHTML = `
       <h1>Redirecting…</h1>
-      <p>Opening product <strong>${asin}</strong> in Amazon Business app (if installed)<br>
-      or Amazon Shopping app…<br>
-      <small>(falling back to browser in a few seconds)</small></p>
+      <p>Opening product <span class="asin">${asin}</span> in<br>
+      <strong>Amazon Business</strong> app (if installed)</p>
+      <p class="small">Trying Amazon Shopping app next…<br>
+      Falling back to browser in a few seconds.</p>
     `;
   </script>
 </head>
 <body>
   <noscript>
-    <h1>JavaScript required</h1>
-    <p>Please enable JavaScript or open this link manually:<br>
-      <a href="https://www.amazon.com/dp/REPLACE_WITH_ASIN">https://www.amazon.com/dp/REPLACE_WITH_ASIN</a>
-    </p>
+    <h1>JavaScript is required</h1>
+    <p>Open manually: <a href="https://www.amazon.com/dp/REPLACE_ASIN_HERE">https://www.amazon.com/dp/REPLACE_ASIN_HERE</a></p>
   </noscript>
 </body>
 </html>
